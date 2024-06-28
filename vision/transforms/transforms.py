@@ -275,7 +275,7 @@ class RandomSampleCrop(object):
         height, width, _ = image.shape
         while True:
             # randomly choose a mode
-            mode = random.choice(self.sample_options)
+            mode = random.choice(np.array(self.sample_options, dtype=object))
             if mode is None:
                 return image, boxes, labels
 
@@ -380,7 +380,7 @@ class RandomSampleCrop_v2(object):
         height, width, _ = image.shape
         while True:
             # randomly choose a mode
-            mode = random.choice(self.sample_options)
+            mode = random.choice(np.array(self.sample_options, dtype=object))
             if mode is None:
                 return image, boxes, labels
 

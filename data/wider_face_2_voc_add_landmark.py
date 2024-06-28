@@ -13,7 +13,7 @@ convet2yoloformat = False
 convert2vocformat = True
 resized_dim = (48, 48)
 
-minsize2select = 10  # min face size
+minsize2select = 30  # min face size
 usepadding = True
 
 datasetprefix = "./wider_face"  #

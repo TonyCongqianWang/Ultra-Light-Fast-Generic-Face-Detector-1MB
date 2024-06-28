@@ -245,12 +245,7 @@ if __name__ == '__main__':
     logging.info("Build network.")
     net = create_net(num_classes)
 
-    # add multigpu_train
     cuda_index_list = None
-    if torch.cuda.device_count() >= 1:
-        cuda_index_list = [int(v.strip()) for v in args.cuda_index.split(",")]
-        net = nn.DataParallel(net, device_ids=cuda_index_list)
-        logging.info("use gpu :{}".format(cuda_index_list))
 
     min_loss = -10000.0
     last_epoch = -1
@@ -279,20 +274,7 @@ if __name__ == '__main__':
         params = itertools.chain(net.regression_headers.parameters(), net.classification_headers.parameters())
         logging.info("Freeze all the layers except prediction heads.")
     else:
-        if cuda_index_list:
-            params = [
-                {'params': net.module.base_net.parameters(), 'lr': base_net_lr},
-                {'params': itertools.chain(
-                    net.module.source_layer_add_ons.parameters(),
-                    net.module.extras.parameters()
-                ), 'lr': extra_layers_lr},
-                {'params': itertools.chain(
-                    net.module.regression_headers.parameters(),
-                    net.module.classification_headers.parameters()
-                )}
-            ]
-        else:
-            params = [
+        params = [
                 {'params': net.base_net.parameters(), 'lr': base_net_lr},
                 {'params': itertools.chain(
                     net.source_layer_add_ons.parameters(),
@@ -370,8 +352,5 @@ if __name__ == '__main__':
                 f"Validation Classification Loss: {val_classification_loss:.4f}"
             )
             model_path = os.path.join(args.checkpoint_folder, f"{args.net}-Epoch-{epoch}-Loss-{val_loss}.pth")
-            if cuda_index_list:
-                net.module.save(model_path)
-            else:
-                net.save(model_path)
+            net.save(model_path)
             logging.info(f"Saved model {model_path}")
