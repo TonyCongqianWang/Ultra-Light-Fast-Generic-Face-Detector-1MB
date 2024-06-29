@@ -489,6 +489,34 @@ class RandomMirror(object):
             boxes = boxes.copy()
             boxes[:, 0::2] = width - boxes[:, 2::-2]
         return image, boxes, classes
+    
+class RandomCoverRect(object):    
+    def __call__(self, image, boxes, classes):
+        def DoesNotIntersect(rect, width, height, boxes):
+            [x,y,x2,y2] = rect
+            if x2 >= width or y2 >= height:
+                return False
+            overlap = intersect(boxes, rect)
+            if overlap.max() > 0:
+                return False
+            return True
+        height, width, depth = image.shape
+        if random.randint(10):
+            y = random.randint(height)
+            x = random.randint(width)
+            nboxes, _ = boxes.shape
+            i = random.randint(nboxes)
+            box_h = boxes[i, 3] - boxes[i, 1]
+            box_w = boxes[i, 2] - boxes[i, 0]
+            y2 = int(y + box_h * random.uniform(0.8, 1 / 0.8))
+            x2 = int(y + box_w * random.uniform(0.8, 1 / 0.8))
+            if DoesNotIntersect([x,y,x2,y2], width, height, boxes): 
+                image = image.copy()
+                boxes = boxes.copy()
+                intensity = random.randint(100)
+                image[y:y2, x:x2, :] = tuple([intensity + random.randint(20) for _ in range(depth)])
+        return image, boxes, classes
+
 
 
 class SwapChannels(object):

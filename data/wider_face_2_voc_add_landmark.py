@@ -4,19 +4,32 @@ import os
 import shutil
 from xml.dom.minidom import Document
 
-import cv2
+import cv2, argparse
 
-rootdir = "./wider_face_add_lm_10_10"
+parser = argparse.ArgumentParser(
+    description='convert widerface format to voc format')
+
+parser.add_argument('-o', '--outdir', default="./wider_face_add_lm_10_10", help="root dir of output")
+parser.add_argument('-d', "--dataset", default="./wider_face",
+                    help='root dir of datset images')
+parser.add_argument('-a', '--gt_path', default="./retinaface_labels/",
+                    help='root dir of annotations to convert')
+parser.add_argument('--min_face_size', default=30, type=int,
+                    help='faces smaller will be covered with an rectangle')
+args = parser.parse_args()
+
+rootdir = args.outdir + "/"
+datasetprefix = args.dataset + "/"
+retinaface_gt_file_path = args.gt_path + "/"
+
 os.makedirs(rootdir)
-retinaface_gt_file_path = "./retinaface_labels/"
+minsize2select = args.min_face_size  # min face size
 convet2yoloformat = False
 convert2vocformat = True
 resized_dim = (48, 48)
 
-minsize2select = 30  # min face size
 usepadding = True
 
-datasetprefix = "./wider_face"  #
 
 
 def convertimgset(img_set="train"):
@@ -53,7 +66,7 @@ def convertimgset(img_set="train"):
                     cv2.imwrite(imagesdir + "/" + filename, saveimg)
                     imgfilepath = filename[:-4]
                     f_set.write(imgfilepath + '\n')
-                    print("end!")
+                print("end!")
                 break
             if line.startswith("#"):
                 if index != 0 and convert2vocformat:
@@ -65,19 +78,22 @@ def convertimgset(img_set="train"):
                     else:
                         print("no face")
 
-                current_filename = filename = line[1:].strip()
+                current_filename = line[1:].strip()
+                filename = current_filename[:-4] + ".jpg"
                 print(("\r" + str(index) + ":" + filename + "\t\t\t"))
                 index = index + 1
                 bboxes = []
                 lms = []
-                continue
-            else:
+                
                 imgpath = imgdir + "/" + current_filename
                 img = cv2.imread(imgpath)
-                if not img.data:
+                if img is None or not img.data:
+                    print(f"error opening {imgpath}")
                     break
                 saveimg = img.copy()
                 showimg = saveimg.copy()
+                continue
+            else:
                 line = [float(x) for x in line.strip().split()]
                 if int(line[3]) <= 0 or int(line[2]) <= 0:
                     continue
@@ -88,7 +104,8 @@ def convertimgset(img_set="train"):
                 bbox = (x, y, width, height)
                 x2 = x + width
                 y2 = y + height
-                if width >= minsize2select and height >= minsize2select:
+                valid_face = len(line) < 19 or float(line[19]) > 0
+                if width >= minsize2select and height >= minsize2select and valid_face:
                     bboxes.append(bbox)
                     if img_set == "train":
                         if line[4] == -1:
@@ -104,7 +121,9 @@ def convertimgset(img_set="train"):
                             lms.append(lm)
                     cv2.rectangle(showimg, (int(x), int(y)), (int(x2), int(y2)), (0, 255, 0))
                 else:
-                    saveimg[y:y2, x:x2, :] = (104, 117, 123)
+                    cover_color = saveimg[y:y2, x:x2, :].mean(axis=0).mean(axis=0)
+                    print(f"covering invalid face {x}, {y}, {x2}, {y2} : {cover_color}")
+                    saveimg[y:y2, x:x2, :] = cover_color
                     cv2.rectangle(showimg, (x, y), (x2, y2), (0, 0, 255))
                 filename = filename.replace("/", "_")
 

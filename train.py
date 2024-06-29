@@ -94,8 +94,8 @@ parser.add_argument('--overlap_threshold', default=0.35, type=float,
                     help='overlap_threshold')
 parser.add_argument('--optimizer_type', default="SGD", type=str,
                     help='optimizer_type')
-parser.add_argument('--input_size', default=320, type=int,
-                    help='define network input size,default optional value 128/160/320/480/640/1280')
+parser.add_argument('--input_size', default=320, type=int, choices=[128, 160, 320, 480, 640, 1280],
+                    help='define network input size,default 320 optional value 128/160/320/480/640/1280')
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -165,6 +165,17 @@ def train(loader, net, criterion, optimizer, device, debug_steps=100, epoch=-1):
             running_loss = 0.0
             running_regression_loss = 0.0
             running_classification_loss = 0.0
+    print(".", flush=True)
+    if i < debug_steps:
+        avg_loss = running_loss / debug_steps
+        avg_reg_loss = running_regression_loss / debug_steps
+        avg_clf_loss = running_classification_loss / debug_steps
+        logging.info(
+            f"Epoch: {epoch}, Step: {i}, " +
+            f"Average Loss: {avg_loss:.4f}, " +
+            f"Average Regression Loss {avg_reg_loss:.4f}, " +
+            f"Average Classification Loss: {avg_clf_loss:.4f}"
+        )
 
 
 def test(loader, net, criterion, device):
@@ -223,7 +234,6 @@ if __name__ == '__main__':
             label_file = os.path.join(args.checkpoint_folder, "voc-model-labels.txt")
             store_labels(label_file, dataset.class_names)
             num_classes = len(dataset.class_names)
-
         else:
             raise ValueError(f"Dataset tpye {args.dataset_type} is not supported.")
         datasets.append(dataset)
@@ -285,23 +295,9 @@ if __name__ == '__main__':
                     net.classification_headers.parameters()
                 )}
             ]
-
-    timer.start("Load Model")
-    if args.resume:
-        logging.info(f"Resume from the model {args.resume}")
-        net.load(args.resume)
-    elif args.base_net:
-        logging.info(f"Init from base net {args.base_net}")
-        net.init_from_base_net(args.base_net)
-    elif args.pretrained_ssd:
-        logging.info(f"Init from pretrained ssd {args.pretrained_ssd}")
-        net.init_from_pretrained_ssd(args.pretrained_ssd)
-    logging.info(f'Took {timer.end("Load Model"):.2f} seconds to load the model.')
-
+        
     net.to(DEVICE)
 
-    criterion = MultiboxLoss(config.priors, neg_pos_ratio=3,
-                             center_variance=0.1, size_variance=0.2, device=DEVICE)
     if args.optimizer_type == "SGD":
         optimizer = torch.optim.SGD(params, lr=args.lr, momentum=args.momentum,
                                     weight_decay=args.weight_decay)
@@ -312,6 +308,30 @@ if __name__ == '__main__':
         logging.fatal(f"Unsupported optimizer: {args.scheduler}.")
         parser.print_help(sys.stderr)
         sys.exit(1)
+        
+    timer.start("Load Model")
+    if args.resume:
+        logging.info(f"Resume from the model {args.resume}")
+        try:
+            checkpoint = torch.load(args.resume)
+            net.load(checkpoint['model_path'])
+            optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+            last_epoch = checkpoint['epoch']
+        except:
+            print("missing metainformation in checkpoint loading net only")
+            net.load(args.resume)
+    elif args.base_net:
+        logging.info(f"Init from base net {args.base_net}")
+        net.init_from_base_net(args.base_net)
+    elif args.pretrained_ssd:
+        logging.info(f"Init from pretrained ssd {args.pretrained_ssd}")
+        net.init_from_pretrained_ssd(args.pretrained_ssd)
+    logging.info(f'Took {timer.end("Load Model"):.2f} seconds to load the model.')
+
+
+    criterion = MultiboxLoss(config.priors, neg_pos_ratio=3,
+                             center_variance=0.1, size_variance=0.2, device=DEVICE)
+
     logging.info(f"Learning rate: {args.lr}, Base net learning rate: {base_net_lr}, "
                  + f"Extra Layers learning rate: {extra_layers_lr}.")
     if args.optimizer_type != "Adam":
@@ -332,17 +352,18 @@ if __name__ == '__main__':
 
     logging.info(f"Start training from epoch {last_epoch + 1}.")
     for epoch in range(last_epoch + 1, args.num_epochs):
-        if args.optimizer_type != "Adam":
-            if args.scheduler != "poly":
-                if epoch != 0:
-                    scheduler.step()
         train(train_loader, net, criterion, optimizer,
               device=DEVICE, debug_steps=args.debug_steps, epoch=epoch)
         if args.scheduler == "poly":
             adjust_learning_rate(optimizer, epoch)
+        elif args.optimizer_type != "Adam":
+            if args.scheduler != "poly":
+                if epoch != 0:
+                    scheduler.step()
+        
         logging.info("lr rate :{}".format(optimizer.param_groups[0]['lr']))
 
-        if epoch % args.validation_epochs == 0 or epoch == args.num_epochs - 1:
+        if (epoch + 1) % args.validation_epochs == 0 or epoch == args.num_epochs - 1:
             logging.info("lr rate :{}".format(optimizer.param_groups[0]['lr']))
             val_loss, val_regression_loss, val_classification_loss = test(val_loader, net, criterion, DEVICE)
             logging.info(
@@ -353,4 +374,9 @@ if __name__ == '__main__':
             )
             model_path = os.path.join(args.checkpoint_folder, f"{args.net}-Epoch-{epoch}-Loss-{val_loss}.pth")
             net.save(model_path)
+            torch.save({
+            'epoch': epoch,
+            'model_path': model_path,
+            'optimizer_state_dict': optimizer.state_dict(),
+            }, model_path + ".tar")
             logging.info(f"Saved model {model_path}")

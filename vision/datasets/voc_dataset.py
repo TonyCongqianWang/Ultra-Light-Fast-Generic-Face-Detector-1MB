@@ -1,7 +1,9 @@
 import logging
 import os
 import pathlib
+from numpy import random
 import xml.etree.ElementTree as ET
+from ..transforms.transforms import intersect
 
 import cv2
 import numpy as np
@@ -18,6 +20,7 @@ class VOCDataset:
         self.root = pathlib.Path(root)
         self.transform = transform
         self.target_transform = target_transform
+        self.is_test = is_test
         if is_test:
             image_sets_file = self.root / "ImageSets/Main/test.txt"
         else:
@@ -57,6 +60,12 @@ class VOCDataset:
             boxes = boxes[is_difficult == 0]
             labels = labels[is_difficult == 0]
         image = self._read_image(image_id)
+        if not self.is_test and random.randint(6) == 0:
+            n_copies = random.randint(2) + random.randint(2) + 1
+            copy_idices = []
+            for n_copies in range(n_copies):
+                copy_idices.append(random.randint(len(self.ids)))
+            image, boxes, labels = self._perform_copy_paste(image, boxes, labels, copy_idices)
         if self.transform:
             image, boxes, labels = self.transform(image, boxes, labels)
         if self.target_transform:
@@ -84,6 +93,27 @@ class VOCDataset:
             for line in f:
                 ids.append(line.rstrip())
         return ids
+    
+    def _perform_copy_paste(self, image, boxes, labels, copy_idices):
+        labels = list(labels)
+        for index in copy_idices:
+            image_id = self.ids[index]
+            new_boxes, new_labels, _ = self._get_annotation(image_id)
+            chosen = random.randint(len(new_labels))
+            box, label = np.array(new_boxes[chosen, :], dtype=int), new_labels[chosen]
+            copy_img = self._read_image(image_id)
+            copy_face = copy_img[box[1]:box[3], box[0]:box[2], :]
+            h, w, _ = image.shape
+            box_h, box_w, _ = copy_face.shape
+
+            random_x, random_y = random.randint(w), random.randint(h)
+            x1, y1, x2, y2 = random_x, random_y, random_x + box_w, random_y + box_h
+            new_box = np.array([x1, y1, x2, y2], dtype=np.float32)
+            if x2 < w and y2 < h and intersect(boxes, new_box).max() == 0:
+                image[y1:y2, x1:x2, :] = copy_face
+                boxes = np.concatenate([boxes, [new_box]])
+                labels.append(label)
+        return image, np.array(boxes, dtype=np.float32), np.array(labels, dtype=np.int64)
 
     def _get_annotation(self, image_id):
         annotation_file = self.root / f"Annotations/{image_id}.xml"

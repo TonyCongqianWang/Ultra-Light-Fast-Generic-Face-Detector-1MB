@@ -158,6 +158,9 @@ class MatchPrior(object):
                                                 self.corner_form_priors, self.iou_threshold)
         boxes = box_utils.corner_form_to_center_form(boxes)
         locations = box_utils.convert_boxes_to_locations(boxes, self.center_form_priors, self.center_variance, self.size_variance)
+        if np.isinf(locations).any():
+            print("inf value detected")
+            print(gt_boxes, gt_labels, len(gt_boxes), len(gt_labels))
         return locations, labels
 
 
