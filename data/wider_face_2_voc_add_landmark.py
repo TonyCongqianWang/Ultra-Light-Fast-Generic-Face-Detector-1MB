@@ -26,10 +26,10 @@ os.makedirs(rootdir)
 minsize2select = args.min_face_size  # min face size
 convet2yoloformat = False
 convert2vocformat = True
+saveBackground = True
 resized_dim = (48, 48)
 
 usepadding = True
-
 
 
 def convertimgset(img_set="train"):
@@ -38,6 +38,7 @@ def convertimgset(img_set="train"):
     imagesdir = rootdir + "/JPEGImages"
     vocannotationdir = rootdir + "/Annotations"
     labelsdir = rootdir + "/labels"
+    backgrounddir = rootdir + "/Background"
     if not os.path.exists(imagesdir):
         os.mkdir(imagesdir)
     if not os.path.exists(rootdir + "/ImageSets"):
@@ -45,6 +46,8 @@ def convertimgset(img_set="train"):
     if not os.path.exists(rootdir + "/ImageSets/Main"):
         os.mkdir(rootdir + "/ImageSets/Main")
 
+    if saveBackground:
+        os.makedirs(backgrounddir, exist_ok=True)
     if convet2yoloformat:
         if not os.path.exists(labelsdir):
             os.mkdir(labelsdir)
@@ -52,7 +55,8 @@ def convertimgset(img_set="train"):
         if not os.path.exists(vocannotationdir):
             os.mkdir(vocannotationdir)
     index = 0
-
+    
+    f_bg = open(rootdir + "/ImageSets/Main/background.txt", 'w')
     f_set = open(rootdir + "/ImageSets/Main/" + img_set + ".txt", 'w')
     current_filename = ""
     bboxes = []
@@ -76,6 +80,10 @@ def convertimgset(img_set="train"):
                         imgfilepath = filename[:-4]
                         f_set.write(imgfilepath + '\n')
                     else:
+                        if saveBackground and img_set == "train":
+                            cv2.imwrite(backgrounddir + "/" + filename, saveimg)
+                            imgfilepath = filename[:-4]
+                            f_bg.write(imgfilepath + '\n')
                         print("no face")
 
                 current_filename = line[1:].strip()
@@ -143,7 +151,7 @@ def convertimgset(img_set="train"):
                         ftxt.write(txtline)
                     ftxt.close()
     f_set.close()
-
+    f_bg.close()
 
 def method_name(bboxes, filename, saveimg, vocannotationdir, lms, img_set):
     xmlpath = vocannotationdir + "/" + filename

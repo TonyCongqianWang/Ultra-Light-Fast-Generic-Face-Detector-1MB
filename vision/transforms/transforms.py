@@ -2,13 +2,49 @@
 
 
 import types
+from typing import Any
 
 import cv2
 import numpy as np
 import torch
 from numpy import random
 from torchvision import transforms
+import albumentations as A
 
+albumentation_transform = A.Compose([
+           A.CLAHE(p=0.2),
+           A.GaussNoise(p=0.2),
+           A.ShiftScaleRotate(scale_limit=(0.8, 1.3), rotate_limit=(0, 0), p=1),
+           A.SafeRotate(limit=(-30,30), p=1),
+           A.BBoxSafeRandomCrop(p=1),
+           A.RandomBrightnessContrast(p=0.2)
+       ], p=0.75, bbox_params=A.BboxParams(format='pascal_voc', label_fields=['class_labels']))
+    
+
+class TransformWIthAlbumentations():
+    def __call__(self, image, bboxes=None, class_labels=None):
+        exceptions = []
+        for n_try in range(300):
+            try:
+                transformed = albumentation_transform(image=image, bboxes=bboxes, class_labels=class_labels)
+                transformed_image = transformed['image']
+                transformed_bboxes = None
+                transformed_class_labels = None
+                if bboxes is not None:
+                    transformed_bboxes = transformed['bboxes']
+                    transformed_bboxes = np.array(transformed_bboxes, dtype=np.float32)
+                    transformed_class_labels = transformed['class_labels']
+                    transformed_class_labels = np.array(transformed_class_labels, dtype=np.int64)
+                    if len(transformed_bboxes) == 0 or len(transformed_bboxes) != len(transformed_class_labels):
+                        continue
+                return transformed_image, transformed_bboxes, transformed_class_labels
+            except Exception as ex:
+                if (n_try + 1) % 50 == 0:
+                    exceptions.append(ex)
+                    print(f"WARNING: Albumentations causes boxes to leave image: {n_try}")
+                pass
+        print("Albumentations error")
+        raise exceptions
 
 def intersect(box_a, box_b):
     max_xy = np.minimum(box_a[:, 2:], box_b[2:])
@@ -491,7 +527,7 @@ class RandomMirror(object):
         return image, boxes, classes
     
 class RandomCoverRect(object):    
-    def __call__(self, image, boxes, classes):
+    def __call__(self, image, boxes=None, labels=None):
         def DoesNotIntersect(rect, width, height, boxes):
             [x,y,x2,y2] = rect
             if x2 >= width or y2 >= height:
@@ -501,7 +537,7 @@ class RandomCoverRect(object):
                 return False
             return True
         height, width, depth = image.shape
-        if random.randint(10):
+        if len(boxes) > 0 and random.randint(10) == 0:
             y = random.randint(height)
             x = random.randint(width)
             nboxes, _ = boxes.shape
@@ -515,7 +551,7 @@ class RandomCoverRect(object):
                 boxes = boxes.copy()
                 intensity = random.randint(100)
                 image[y:y2, x:x2, :] = tuple([intensity + random.randint(20) for _ in range(depth)])
-        return image, boxes, classes
+        return image, boxes, labels
 
 
 

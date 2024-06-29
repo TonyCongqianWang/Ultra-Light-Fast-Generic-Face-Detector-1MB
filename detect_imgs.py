@@ -39,8 +39,8 @@ candidate_size = len(fd_config.priors)
 
 class_names = [name.strip() for name in open(label_path).readlines()]
 if args.net_type == 'slim':
-    # model_path = "models/pretrained/dpg-slim-160.pth"
-    model_path = "models/pretrained/version-slim-320.pth"
+    model_path = "models/pretrained/dpg-slim-160.pth"
+    # model_path = "models/pretrained/version-slim-320.pth"
     # model_path = "models/pretrained/version-slim-640.pth"
     net = create_mb_tiny_fd(len(class_names), is_test=True, device=test_device)
     predictor = create_mb_tiny_fd_predictor(net, candidate_size=candidate_size, device=test_device)

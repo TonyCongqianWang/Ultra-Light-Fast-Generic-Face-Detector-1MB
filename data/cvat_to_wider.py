@@ -1,5 +1,7 @@
+from fileinput import filename
 import xml.etree.cElementTree as ET
-import argparse, os
+import argparse, os, glob
+from numpy import random
 
 def add_annotations(xml, train_dest_file, val_dest_file):
     def parse_point(point_string):
@@ -42,15 +44,28 @@ def add_annotations(xml, train_dest_file, val_dest_file):
             print(*["-1.0" for _ in range(15)], file=dest_file, end=" ")
             print("0.0" if ignore else "1.0", file=dest_file)
 
+def add_background_imgs(train_dest_file, background_dir, p):
+    if not os.path.exists(background_dir):
+        return
+    img_files = glob.glob(f'{background_dir}/**/*.bmp', recursive=True) + glob.glob(f'{background_dir}/**/*.jpg', recursive=True)
+    for f_path in img_files:
+        if random.uniform(0,1) < p:
+            filename = f_path.split(os.sep)[-1]
+            print("#", f"../background/{filename}", file=train_dest_file)
+    
 
 def main():
     parser = argparse.ArgumentParser(description="Converts Cvat annotation file to two dlib annotation files")
     parser.add_argument("base_path", help="path or glob to data")
+    parser.add_argument("-p", "--extra_background_keep_ratio", default=0.1, help="relative freq of extra images in extra folder to keep")
     args = parser.parse_args()
-
+    
     cvat_file_name = f"{args.base_path}/annotations.xml"
     train_dest_name = f"{args.base_path}/train/label.txt"
     val_dest_name = f"{args.base_path}/val/label.txt"
+    
+    background_dir = f"{args.base_path}/WIDER_train/background/"
+
     os.makedirs(os.path.dirname(train_dest_name), exist_ok=True)
     os.makedirs(os.path.dirname(val_dest_name), exist_ok=True)
 
@@ -58,4 +73,5 @@ def main():
         annotation_xml = f.read()
     with open(train_dest_name, "w") as train_dest_file, open(val_dest_name, "w") as val_dest_file:
         add_annotations(annotation_xml, train_dest_file, val_dest_file)
+        add_background_imgs(train_dest_file, background_dir, args.extra_background_keep_ratio)
 main()

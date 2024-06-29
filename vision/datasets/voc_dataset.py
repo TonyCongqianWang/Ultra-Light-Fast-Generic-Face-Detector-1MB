@@ -7,6 +7,7 @@ from ..transforms.transforms import intersect
 
 import cv2
 import numpy as np
+from math import log10
 
 
 class VOCDataset:
@@ -23,9 +24,13 @@ class VOCDataset:
         self.is_test = is_test
         if is_test:
             image_sets_file = self.root / "ImageSets/Main/test.txt"
+            self.bgs = []
         else:
             image_sets_file = self.root / "ImageSets/Main/trainval.txt"
+            bg_sets_file = "ImageSets/Main/background.txt"
+            self.bgs = VOCDataset._read_image_ids(bg_sets_file, optional=True)
         self.ids = VOCDataset._read_image_ids(image_sets_file)
+        
         self.keep_difficult = keep_difficult
 
         # if the labels file exists, read in the class names
@@ -54,23 +59,32 @@ class VOCDataset:
         self.class_dict = {class_name: i for i, class_name in enumerate(self.class_names)}
 
     def __getitem__(self, index):
-        image_id = self.ids[index]
-        boxes, labels, is_difficult = self._get_annotation(image_id)
-        if not self.keep_difficult:
-            boxes = boxes[is_difficult == 0]
-            labels = labels[is_difficult == 0]
-        image = self._read_image(image_id)
-        if not self.is_test and random.randint(6) == 0:
-            n_copies = random.randint(2) + random.randint(2) + 1
-            copy_idices = []
-            for n_copies in range(n_copies):
-                copy_idices.append(random.randint(len(self.ids)))
-            image, boxes, labels = self._perform_copy_paste(image, boxes, labels, copy_idices)
+        if not self.is_test and self.bgs and random.randint(10) == 0:
+            n_faces = int(log10(random.randint(10000))) + 1
+            image, boxes, labels = self._get_item_synthetic(n_faces)
+        else:
+            image, boxes, labels = self._get_item_normal(index)
         if self.transform:
             image, boxes, labels = self.transform(image, boxes, labels)
         if self.target_transform:
             boxes, labels = self.target_transform(boxes, labels)
         return image, boxes, labels
+    
+    def _get_item_normal(self, index):
+        image_id = self.ids[index]
+
+        boxes, labels, _ = self._get_annotation(image_id)
+        image = self._read_image(image_id)
+        return image, boxes, labels
+        
+    def _get_item_synthetic(self, n_copies):
+        image = self._read_background_image()
+        copy_idices = []
+        for n_copies in range(n_copies):
+            copy_idices.append(random.randint(len(self.ids)))
+        labels = []
+        boxes = np.empty((0, 4))
+        return self._perform_copy_paste(image, boxes, labels, copy_idices)
 
     def get_image(self, index):
         image_id = self.ids[index]
@@ -87,32 +101,38 @@ class VOCDataset:
         return len(self.ids)
 
     @staticmethod
-    def _read_image_ids(image_sets_file):
+    def _read_image_ids(image_sets_file, optional=False):
         ids = []
-        with open(image_sets_file) as f:
-            for line in f:
-                ids.append(line.rstrip())
+        try:
+            with open(image_sets_file) as f:
+                for line in f:
+                    ids.append(line.rstrip())
+        except IOError:
+            if not optional:
+                raise
         return ids
     
     def _perform_copy_paste(self, image, boxes, labels, copy_idices):
         labels = list(labels)
+        boxes = list(boxes)
         for index in copy_idices:
-            image_id = self.ids[index]
-            new_boxes, new_labels, _ = self._get_annotation(image_id)
-            chosen = random.randint(len(new_labels))
-            box, label = np.array(new_boxes[chosen, :], dtype=int), new_labels[chosen]
-            copy_img = self._read_image(image_id)
-            copy_face = copy_img[box[1]:box[3], box[0]:box[2], :]
-            h, w, _ = image.shape
-            box_h, box_w, _ = copy_face.shape
+            for _ in range(10):
+                copy_img, new_boxes, new_labels = self._get_item_normal(index)
 
-            random_x, random_y = random.randint(w), random.randint(h)
-            x1, y1, x2, y2 = random_x, random_y, random_x + box_w, random_y + box_h
-            new_box = np.array([x1, y1, x2, y2], dtype=np.float32)
-            if x2 < w and y2 < h and intersect(boxes, new_box).max() == 0:
-                image[y1:y2, x1:x2, :] = copy_face
-                boxes = np.concatenate([boxes, [new_box]])
-                labels.append(label)
+                chosen = random.randint(len(new_labels))
+                box, label = np.array(new_boxes[chosen, :], dtype=int), new_labels[chosen]
+                copy_face = copy_img[box[1]:box[3], box[0]:box[2], :]
+                h, w, _ = image.shape
+                box_h, box_w, _ = copy_face.shape
+
+                random_x, random_y = random.randint(w), random.randint(h)
+                x1, y1, x2, y2 = random_x, random_y, random_x + box_w, random_y + box_h
+                new_box = np.array([x1, y1, x2, y2], dtype=np.float32)
+                if x2 < w and y2 < h and intersect(boxes, new_box).max() == 0:
+                    image[y1:y2, x1:x2, :] = copy_face
+                    boxes.append(new_box)
+                    labels.append(label)
+                    break
         return image, np.array(boxes, dtype=np.float32), np.array(labels, dtype=np.int64)
 
     def _get_annotation(self, image_id):
@@ -141,6 +161,15 @@ class VOCDataset:
         return (np.array(boxes, dtype=np.float32),
                 np.array(labels, dtype=np.int64),
                 np.array(is_difficult, dtype=np.uint8))
+
+    def _read_background_image(self):
+        image_id = random.choice(self.bgs)
+        image_file = self.root / f"Background/{image_id}.jpg"
+        image = cv2.imread(str(image_file))
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        if self.transform:
+            image, _ = self.transform(image)
+        return image
 
     def _read_image(self, image_id):
         image_file = self.root / f"JPEGImages/{image_id}.jpg"
