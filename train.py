@@ -6,6 +6,7 @@ import itertools
 import logging
 import os
 import sys
+from torch.utils.tensorboard import SummaryWriter
 
 import torch
 from torch import nn
@@ -101,6 +102,8 @@ parser.add_argument('--input_size', default=320, type=int, choices=[128, 160, 32
 logging.basicConfig(stream=sys.stdout, level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 args = parser.parse_args()
+
+writer = SummaryWriter()
 
 input_img_size = args.input_size  # define input size ,default optional(128/160/320/480/640/1280)
 logging.info("inpu size :{}".format(input_img_size))

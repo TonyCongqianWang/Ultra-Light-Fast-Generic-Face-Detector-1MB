@@ -22,7 +22,7 @@ rootdir = args.outdir + "/"
 datasetprefix = args.dataset + "/"
 retinaface_gt_file_path = args.gt_path + "/"
 
-os.makedirs(rootdir, exist_ok=True)
+os.makedirs(rootdir, exist_ok=False)
 minsize2select = args.min_face_size  # min face size
 convet2yoloformat = False
 convert2vocformat = True
@@ -341,7 +341,7 @@ def generatevocsets(img_set="train"):
 
 
 def convertdataset():
-    img_sets = ["train"]
+    img_sets = ["train", "val"]
     for img_set in img_sets:
         convertimgset(img_set)
 
