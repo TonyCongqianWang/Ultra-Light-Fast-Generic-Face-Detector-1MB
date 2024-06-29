@@ -9,7 +9,7 @@ from ..transforms.transforms import intersect
 
 import cv2
 import numpy as np
-from math import log10
+from math import trunc
 
 os.makedirs("voc_augments/tmp/", exist_ok= True)
 debug_image_dir = "voc_augments/tmp/"
@@ -69,8 +69,7 @@ class VOCDataset:
         global debug_image_count
 
         if not self.is_test and self.bgs and random.randint(10) == 0:
-            n_faces = int(log10(random.randint(10000))) + 1
-            image, boxes, labels = self._get_item_synthetic(n_faces)
+            image, boxes, labels = self._get_item_synthetic()
         else:
             image, boxes, labels = self._get_item_normal(index)
         if self.train_augmentation and not self.is_test:
@@ -78,7 +77,11 @@ class VOCDataset:
             if True:
                 file_count = debug_image_count
                 #print(f"writing debug image {debug_image_dir}/{file_count}.jpg: {boxes}")
-                cv2.imwrite(f"{debug_image_dir}/{file_count}.jpg", image)
+                saveimg = image.copy()
+                for (x,y,x2,y2) in boxes:
+                    w, h = x2 - x, y2 - y
+                    cv2.rectangle(saveimg, (int(x), int(y), int(w), int(h)), (0, 255, 100))
+                cv2.imwrite(f"{debug_image_dir}/{file_count}.jpg", saveimg)
                 pass
             debug_image_count += 1
         if self.predict_transform:
@@ -95,11 +98,13 @@ class VOCDataset:
         image = self._read_image(image_id)
         return image, boxes, labels
         
-    def _get_item_synthetic(self, n_copies):
+    def _get_item_synthetic(self):
         image = self._read_background_image()
         labels = []
         boxes = np.empty((0, 4))
-        return self._perform_copy_paste(image, boxes, labels, n_copies)
+        n_faces = random.exponential(scale=1)
+        n_faces = trunc(n_faces) + 1
+        return self._perform_copy_paste(image, boxes, labels, n_faces)
 
     def get_image(self, index):
         image_id = self.ids[index]
@@ -141,9 +146,9 @@ class VOCDataset:
                 h, w, _ = image.shape
                 box_h, box_w, _ = copy_face.shape
                 aspect_ratio = box_h / box_w
-                box_w = random.randint(int(0.07 * w), int(0.4 * w)),
+                box_w = random.randint(int(0.07 * w), int(0.4 * w))
                 box_h = int(box_w * aspect_ratio)
-                copy_face = cv2.resize(copy_face, dims=(box_w, box_h))
+                copy_face = cv2.resize(copy_face, dsize=(box_w, box_h))
 
                 random_x, random_y = random.randint(w), random.randint(h)
                 x1, y1, x2, y2 = random_x, random_y, random_x + box_w, random_y + box_h

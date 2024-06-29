@@ -14,7 +14,7 @@ import albumentations as A
 def albumentation_transform(size):
     return A.Compose([
            A.CLAHE(p=0.3),
-           A.SafeRotate(limit=(-30,30), p=0.75),
+           A.SafeRotate(limit=(-30,30), p=0.75, border_mode = cv2.BORDER_REPLICATE),
            A.RandomSizedBBoxSafeCrop(width=size[0], height=size[1], p=0.75),
        ], p=0.5, bbox_params=A.BboxParams(format='pascal_voc', label_fields=['class_labels']))
     

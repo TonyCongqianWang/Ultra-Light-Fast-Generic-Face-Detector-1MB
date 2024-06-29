@@ -6,7 +6,10 @@ import itertools
 import logging
 import os
 import sys
+import torchvision
 from torch.utils.tensorboard import SummaryWriter
+from torchvision.utils import draw_bounding_boxes 
+
 
 import torch
 from torch import nn
@@ -171,9 +174,9 @@ def train(loader, net, criterion, optimizer, device, debug_steps=100, epoch=-1):
             running_classification_loss = 0.0
     print(".", flush=True)
     if i < debug_steps:
-        avg_loss = running_loss / debug_steps
-        avg_reg_loss = running_regression_loss / debug_steps
-        avg_clf_loss = running_classification_loss / debug_steps
+        avg_loss = running_loss / i
+        avg_reg_loss = running_regression_loss / i
+        avg_clf_loss = running_classification_loss / i
         logging.info(
             f"Epoch: {epoch}, Step: {i}, " +
             f"Average Loss: {avg_loss:.4f}, " +
@@ -199,7 +202,9 @@ def test(loader, net, criterion, device):
             confidence, locations = net(images)
             regression_loss, classification_loss = criterion(confidence, locations, labels, boxes)
             loss = regression_loss + classification_loss
-
+            
+        img_grid = torchvision.utils.make_grid(images)
+        writer.add_image('one batch', img_grid)
         running_loss += loss.item()
         running_regression_loss += regression_loss.item()
         running_classification_loss += classification_loss.item()
