@@ -12,17 +12,12 @@ class TrainAugmentation:
         self.size = size
         self.augment = Compose([
             ConvertFromInts(),
-            TransformWIthAlbumentations(),
+            TransformWithAlbumentations(size),
             PhotometricDistort(),
             RandomCoverRect(),
-            ToPercentCoords(),
-            Resize(self.size),
-            SubtractMeans(self.mean),
-            lambda img, boxes=None, labels=None: (img / std, boxes, labels),
-            ToTensor(),
         ])
 
-    def __call__(self, img, boxes, labels):
+    def __call__(self, img, boxes=None, labels=None):
         """
 
         Args:
@@ -36,6 +31,7 @@ class TrainAugmentation:
 class TestTransform:
     def __init__(self, size, mean=0.0, std=1.0):
         self.transform = Compose([
+            ConvertFromInts(),
             ToPercentCoords(),
             Resize(size),
             SubtractMeans(mean),
@@ -43,7 +39,7 @@ class TestTransform:
             ToTensor(),
         ])
 
-    def __call__(self, image, boxes, labels):
+    def __call__(self, image, boxes=None, labels=None):
         return self.transform(image, boxes, labels)
 
 

@@ -12,6 +12,7 @@ from torch import nn
 from torch.optim.lr_scheduler import CosineAnnealingLR, MultiStepLR
 from torch.utils.data import DataLoader, ConcatDataset
 
+import vision.datasets.voc_dataset
 from vision.datasets.voc_dataset import VOCDataset
 from vision.nn.multibox_loss import MultiboxLoss
 from vision.ssd.config.fd_config import define_img_size
@@ -217,11 +218,11 @@ if __name__ == '__main__':
         parser.print_help(sys.stderr)
         sys.exit(1)
 
-    train_transform = TrainAugmentation(config.image_size, config.image_mean, config.image_std)
+    train_augmentation = TrainAugmentation(config.image_size, config.image_mean, config.image_std)
     target_transform = MatchPrior(config.priors, config.center_variance,
                                   config.size_variance, args.overlap_threshold)
 
-    test_transform = TestTransform(config.image_size, config.image_mean_test, config.image_std)
+    predict_transform = TestTransform(config.image_size, config.image_mean_test, config.image_std)
 
     if not os.path.exists(args.checkpoint_folder):
         os.makedirs(args.checkpoint_folder)
@@ -229,7 +230,8 @@ if __name__ == '__main__':
     datasets = []
     for dataset_path in args.datasets:
         if args.dataset_type == 'voc':
-            dataset = VOCDataset(dataset_path, transform=train_transform,
+            dataset = VOCDataset(dataset_path, train_augmentation=train_augmentation,
+                                 predict_transform=predict_transform,
                                  target_transform=target_transform)
             label_file = os.path.join(args.checkpoint_folder, "voc-model-labels.txt")
             store_labels(label_file, dataset.class_names)
@@ -245,7 +247,8 @@ if __name__ == '__main__':
                               shuffle=True)
     logging.info("Prepare Validation datasets.")
     if args.dataset_type == "voc":
-        val_dataset = VOCDataset(args.validation_dataset, transform=test_transform,
+        val_dataset = VOCDataset(dataset_path, train_augmentation=None,
+                                 predict_transform=predict_transform,
                                  target_transform=target_transform, is_test=True)
     logging.info("validation dataset size: {}".format(len(val_dataset)))
 

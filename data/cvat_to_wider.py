@@ -49,9 +49,9 @@ def add_background_imgs(train_dest_file, background_dir, p):
         return
     img_files = glob.glob(f'{background_dir}/**/*.bmp', recursive=True) + glob.glob(f'{background_dir}/**/*.jpg', recursive=True)
     for f_path in img_files:
+        f_path = f_path[len(background_dir):]
         if random.uniform(0,1) < p:
-            filename = f_path.split(os.sep)[-1]
-            print("#", f"../background/{filename}", file=train_dest_file)
+            print("#", f"../Background/{f_path}", file=train_dest_file)
     
 
 def main():
@@ -64,7 +64,7 @@ def main():
     train_dest_name = f"{args.base_path}/train/label.txt"
     val_dest_name = f"{args.base_path}/val/label.txt"
     
-    background_dir = f"{args.base_path}/WIDER_train/background/"
+    background_dir = f"{args.base_path}/WIDER_train/Background/"
 
     os.makedirs(os.path.dirname(train_dest_name), exist_ok=True)
     os.makedirs(os.path.dirname(val_dest_name), exist_ok=True)

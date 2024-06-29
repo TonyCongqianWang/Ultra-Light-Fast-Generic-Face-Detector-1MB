@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # -*- coding: UTF-8 -*-
-import os
+import os, glob
 import shutil
 from xml.dom.minidom import Document
 
@@ -22,7 +22,7 @@ rootdir = args.outdir + "/"
 datasetprefix = args.dataset + "/"
 retinaface_gt_file_path = args.gt_path + "/"
 
-os.makedirs(rootdir)
+os.makedirs(rootdir, exist_ok=True)
 minsize2select = args.min_face_size  # min face size
 convet2yoloformat = False
 convert2vocformat = True
@@ -81,9 +81,14 @@ def convertimgset(img_set="train"):
                         f_set.write(imgfilepath + '\n')
                     else:
                         if saveBackground and img_set == "train":
-                            cv2.imwrite(backgrounddir + "/" + filename, saveimg)
-                            imgfilepath = filename[:-4]
-                            f_bg.write(imgfilepath + '\n')
+                            rel_imgfilepath = filename[:-4]
+                            imgfilepath = backgrounddir + "/" + filename
+                            head_tail = os.path.split(imgfilepath)
+                            if not os.path.exists(imgfilepath):
+                                print(f"saving image to {imgfilepath}")
+                                os.makedirs(head_tail[0], exist_ok=True)
+                                cv2.imwrite(imgfilepath, saveimg)
+                            f_bg.write(rel_imgfilepath + '\n')
                         print("no face")
 
                 current_filename = line[1:].strip()
@@ -336,7 +341,7 @@ def generatevocsets(img_set="train"):
 
 
 def convertdataset():
-    img_sets = ["train", "val"]
+    img_sets = ["train"]
     for img_set in img_sets:
         convertimgset(img_set)
 

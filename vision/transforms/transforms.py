@@ -11,22 +11,22 @@ from numpy import random
 from torchvision import transforms
 import albumentations as A
 
-albumentation_transform = A.Compose([
-           A.CLAHE(p=0.2),
-           A.GaussNoise(p=0.2),
-           A.ShiftScaleRotate(scale_limit=(0.8, 1.3), rotate_limit=(0, 0), p=1),
-           A.SafeRotate(limit=(-30,30), p=1),
-           A.BBoxSafeRandomCrop(p=1),
-           A.RandomBrightnessContrast(p=0.2)
-       ], p=0.75, bbox_params=A.BboxParams(format='pascal_voc', label_fields=['class_labels']))
+def albumentation_transform(size):
+    return A.Compose([
+           A.CLAHE(p=0.3),
+           A.SafeRotate(limit=(-30,30), p=0.75),
+           A.RandomSizedBBoxSafeCrop(width=size[0], height=size[1], p=0.75),
+       ], p=0.5, bbox_params=A.BboxParams(format='pascal_voc', label_fields=['class_labels']))
     
 
-class TransformWIthAlbumentations():
+class TransformWithAlbumentations():
+    def __init__(self, size):
+        self.transform = albumentation_transform(size)
     def __call__(self, image, bboxes=None, class_labels=None):
         exceptions = []
         for n_try in range(300):
             try:
-                transformed = albumentation_transform(image=image, bboxes=bboxes, class_labels=class_labels)
+                transformed = self.transform(image=image, bboxes=bboxes, class_labels=class_labels)
                 transformed_image = transformed['image']
                 transformed_bboxes = None
                 transformed_class_labels = None
@@ -537,7 +537,7 @@ class RandomCoverRect(object):
                 return False
             return True
         height, width, depth = image.shape
-        if len(boxes) > 0 and random.randint(10) == 0:
+        if boxes is not None and len(boxes) > 0 and random.randint(10) == 0:
             y = random.randint(height)
             x = random.randint(width)
             nboxes, _ = boxes.shape
