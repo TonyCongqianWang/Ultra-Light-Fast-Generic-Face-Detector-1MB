@@ -10,4 +10,4 @@ matplotlib
 onnx
 onnxruntime
 Albumentations
-
+wandb
