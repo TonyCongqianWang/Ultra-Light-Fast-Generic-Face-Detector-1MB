@@ -332,11 +332,11 @@ if __name__ == '__main__':
             print("missing metainformation in checkpoint loading net only")
             net.load(args.resume)
     elif args.base_net:
-        model_start = "baseOf_" + args.resume
+        model_start = "baseOf_" + args.base_net
         logging.info(f"Init from base net {args.base_net}")
         net.init_from_base_net(args.base_net)
     elif args.pretrained_ssd:
-        model_start = "ssdOf_" + args.resume
+        model_start = "ssdOf_" + args.pretrained_ssd
         logging.info(f"Init from pretrained ssd {args.pretrained_ssd}")
         net.init_from_pretrained_ssd(args.pretrained_ssd)
     logging.info(f'Took {timer.end("Load Model"):.2f} seconds to load the model.')
