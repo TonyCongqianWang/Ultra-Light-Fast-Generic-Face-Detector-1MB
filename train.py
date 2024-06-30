@@ -7,9 +7,7 @@ import logging
 import os
 import sys
 import torchvision
-from torch.utils.tensorboard import SummaryWriter
-from torchvision.utils import draw_bounding_boxes 
-
+import wandb
 
 import torch
 from torch import nn
@@ -29,7 +27,7 @@ parser.add_argument("--dataset_type", default="voc", type=str,
                     help='Specify dataset type. Currently support voc.')
 
 parser.add_argument('--datasets', nargs='+', help='Dataset directory path')
-parser.add_argument('--validation_dataset', help='Dataset directory path')
+parser.add_argument('--validation_dataset', default=None, help='Dataset directory path')
 parser.add_argument('--balance_data', action='store_true',
                     help="Balance training data by down-sampling more frequent labels.")
 
@@ -105,8 +103,6 @@ parser.add_argument('--input_size', default=320, type=int, choices=[128, 160, 32
 logging.basicConfig(stream=sys.stdout, level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 args = parser.parse_args()
-
-writer = SummaryWriter()
 
 input_img_size = args.input_size  # define input size ,default optional(128/160/320/480/640/1280)
 logging.info("inpu size :{}".format(input_img_size))
@@ -203,12 +199,13 @@ def test(loader, net, criterion, device):
             regression_loss, classification_loss = criterion(confidence, locations, labels, boxes)
             loss = regression_loss + classification_loss
             
-        img_grid = torchvision.utils.make_grid(images)
-        writer.add_image('one batch', img_grid)
         running_loss += loss.item()
         running_regression_loss += regression_loss.item()
         running_classification_loss += classification_loss.item()
-    return running_loss / num, running_regression_loss / num, running_classification_loss / num
+        
+    loss, regression_loss, classification_loss = running_loss / num, running_regression_loss / num, running_classification_loss / num
+    wandb.log({"loss": loss, "reg_loss": regression_loss, "class_loss" : classification_loss})
+    return loss, regression_loss, classification_loss
 
 
 if __name__ == '__main__':
@@ -255,7 +252,8 @@ if __name__ == '__main__':
                               shuffle=True)
     logging.info("Prepare Validation datasets.")
     if args.dataset_type == "voc":
-        val_dataset = VOCDataset(dataset_path, train_augmentation=None,
+        dataset_path = args.validation_dataset if args.validation_dataset is not None else args.datasets[0]
+        val_dataset = VOCDataset(args.validation_dataset, train_augmentation=None,
                                  predict_transform=predict_transform,
                                  target_transform=target_transform, is_test=True)
     logging.info("validation dataset size: {}".format(len(val_dataset)))
@@ -361,6 +359,15 @@ if __name__ == '__main__':
             parser.print_help(sys.stderr)
             sys.exit(1)
 
+    #WANDB LOGGING
+    wandb.init(
+        project="dpg",
+        config={
+            "dataset": args.datasets,
+            "optimizer_params" : optimizer.param_groups
+        }
+    )
+
     logging.info(f"Start training from epoch {last_epoch + 1}.")
     for epoch in range(last_epoch + 1, args.num_epochs):
         train(train_loader, net, criterion, optimizer,
@@ -391,3 +398,7 @@ if __name__ == '__main__':
             'optimizer_state_dict': optimizer.state_dict(),
             }, model_path + ".tar")
             logging.info(f"Saved model {model_path}")
+            wandb.save(model_path)
+            wandb.save(model_path + ".tar")
+            
+    wandb.finish()

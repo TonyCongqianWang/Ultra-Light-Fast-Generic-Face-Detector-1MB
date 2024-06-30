@@ -75,13 +75,13 @@ class VOCDataset:
         if self.train_augmentation and not self.is_test:
             image, boxes, labels = self.train_augmentation(image, boxes, labels)
             if True:
-                file_count = debug_image_count
+                #file_count = debug_image_count
                 #print(f"writing debug image {debug_image_dir}/{file_count}.jpg: {boxes}")
                 saveimg = image.copy()
                 for (x,y,x2,y2) in boxes:
                     w, h = x2 - x, y2 - y
                     cv2.rectangle(saveimg, (int(x), int(y), int(w), int(h)), (0, 255, 100))
-                cv2.imwrite(f"{debug_image_dir}/{file_count}.jpg", saveimg)
+                #cv2.imwrite(f"{debug_image_dir}/{file_count}.jpg", saveimg)
                 pass
             debug_image_count += 1
         if self.predict_transform:

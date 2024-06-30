@@ -27,4 +27,7 @@ python3 -u train.py \
   1 \
   --log_dir \
   ${log_dir} \
+  --freeze_base_net \
+  --resume \
+  ./models/dpg-verion-slim/slim-Epoch-39-Loss-4.823433876037598.pth \
   2>&1 | tee "$log"
