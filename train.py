@@ -253,7 +253,7 @@ if __name__ == '__main__':
     logging.info("Prepare Validation datasets.")
     if args.dataset_type == "voc":
         dataset_path = args.validation_dataset if args.validation_dataset is not None else args.datasets[0]
-        val_dataset = VOCDataset(args.validation_dataset, train_augmentation=None,
+        val_dataset = VOCDataset(dataset_path, train_augmentation=None,
                                  predict_transform=predict_transform,
                                  target_transform=target_transform, is_test=True)
     logging.info("validation dataset size: {}".format(len(val_dataset)))
