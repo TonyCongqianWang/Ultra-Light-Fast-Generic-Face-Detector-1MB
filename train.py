@@ -268,6 +268,7 @@ if __name__ == '__main__':
 
     min_loss = -10000.0
     last_epoch = -1
+    model_start = None
 
     base_net_lr = args.base_net_lr if args.base_net_lr is not None else args.lr
     extra_layers_lr = args.extra_layers_lr if args.extra_layers_lr is not None else args.lr
@@ -321,6 +322,7 @@ if __name__ == '__main__':
     timer.start("Load Model")
     if args.resume:
         logging.info(f"Resume from the model {args.resume}")
+        model_start = args.resume
         try:
             checkpoint = torch.load(args.resume)
             net.load(checkpoint['model_path'])
@@ -330,9 +332,11 @@ if __name__ == '__main__':
             print("missing metainformation in checkpoint loading net only")
             net.load(args.resume)
     elif args.base_net:
+        model_start = "baseOf_" + args.resume
         logging.info(f"Init from base net {args.base_net}")
         net.init_from_base_net(args.base_net)
     elif args.pretrained_ssd:
+        model_start = "ssdOf_" + args.resume
         logging.info(f"Init from pretrained ssd {args.pretrained_ssd}")
         net.init_from_pretrained_ssd(args.pretrained_ssd)
     logging.info(f'Took {timer.end("Load Model"):.2f} seconds to load the model.')
@@ -364,9 +368,11 @@ if __name__ == '__main__':
         project="dpg",
         config={
             "dataset" : args.datasets,
+            "type" : args.net,
             "input_size" : args.input_size,
             "initial_lr" : args.lr,
-            "milestones" : args.milestones
+            "milestones" : args.milestones,
+            "pretrained" : model_start
         }
     )
 
