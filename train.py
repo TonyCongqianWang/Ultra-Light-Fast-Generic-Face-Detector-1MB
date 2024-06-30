@@ -363,8 +363,10 @@ if __name__ == '__main__':
     wandb.init(
         project="dpg",
         config={
-            "dataset": args.datasets,
-            "optimizer_params" : optimizer.param_groups
+            "dataset" : args.datasets,
+            "input_size" : args.input_size,
+            "initial_lr" : args.lr,
+            "milestones" : args.milestones
         }
     )
 
