@@ -11,8 +11,12 @@ class TrainAugmentation:
         self.mean = mean
         self.size = size
         self.augment = Compose([
+            ConvertToInt8s(),
+            TransformWithAlbumentations(
+                transformation=albumentation_transform_uint8()),
             ConvertFromInts(),
-            TransformWithAlbumentations(size),
+            TransformWithAlbumentations(
+                transformation=albumentation_transform_float(size)),
             PhotometricDistort(),
             RandomCoverRect(),
         ])

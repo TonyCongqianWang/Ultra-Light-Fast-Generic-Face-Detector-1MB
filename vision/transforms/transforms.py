@@ -11,17 +11,28 @@ from numpy import random
 from torchvision import transforms
 import albumentations as A
 
-def albumentation_transform(size):
+def albumentation_transform_uint8():
+    return A.Compose([
+           A.ImageCompression(quality_lower=50, quality_upper=100, p=0.5),
+       ], p=0.5, bbox_params=A.BboxParams(format='pascal_voc', label_fields=['class_labels']))
+
+def albumentation_transform_float(size):
     return A.Compose([
            A.CLAHE(p=0.3),
-           A.SafeRotate(limit=(-30,30), p=0.75, border_mode = cv2.BORDER_REPLICATE),
+           A.SafeRotate(limit=(-30,30), border_mode = cv2.BORDER_REPLICATE, p=0.75),
            A.RandomSizedBBoxSafeCrop(width=size[0], height=size[1], p=0.75),
+           A.Perspective(scale=(0,0.07), keep_size=False, fit_output=False, p=0.5)
        ], p=0.5, bbox_params=A.BboxParams(format='pascal_voc', label_fields=['class_labels']))
     
 
 class TransformWithAlbumentations():
-    def __init__(self, size):
-        self.transform = albumentation_transform(size)
+    def __init__(self, size=None, transformation=None):
+        if transformation is None and size is not None:
+            self.transform = albumentation_transform_float(size)
+        elif transformation is not None:
+            self.transform = transformation
+        else:
+            raise Exception("Needs size or transformation")
     def __call__(self, image, bboxes=None, class_labels=None):
         exceptions = []
         for n_try in range(300):
@@ -127,6 +138,11 @@ class ConvertFromInts(object):
     def __call__(self, image, boxes=None, labels=None):
         return image.astype(np.float32), boxes, labels
 
+class ConvertToInt8s(object):
+    def __call__(self, image, boxes=None, labels=None):
+        image = np.rint(image)
+        np.clip(image, 0, 255, out=image)
+        return image.astype(np.uint8), boxes, labels
 
 class SubtractMeans(object):
     def __init__(self, mean):

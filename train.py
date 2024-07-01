@@ -97,8 +97,8 @@ parser.add_argument('--overlap_threshold', default=0.35, type=float,
                     help='overlap_threshold')
 parser.add_argument('--optimizer_type', default="SGD", type=str,
                     help='optimizer_type')
-parser.add_argument('--input_size', default=320, type=int, choices=[128, 160, 320, 480, 640, 1280],
-                    help='define network input size,default 320 optional value 128/160/320/480/640/1280')
+parser.add_argument('--input_size', default=320, type=int, choices=[128, 160, 240, 320, 480, 640, 1280],
+                    help='define network input size,default 320 optional value 128/160/240/320/480/640/1280')
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
