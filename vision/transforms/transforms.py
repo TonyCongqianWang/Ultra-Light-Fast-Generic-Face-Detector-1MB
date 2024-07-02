@@ -11,18 +11,18 @@ from numpy import random
 from torchvision import transforms
 import albumentations as A
 
-def albumentation_transform_uint8():
+def albumentation_transform_uint8(p):
     return A.Compose([
            A.ImageCompression(quality_lower=50, quality_upper=100, p=0.5),
-       ], p=0.5, bbox_params=A.BboxParams(format='pascal_voc', label_fields=['class_labels']))
+       ], p=p, bbox_params=A.BboxParams(format='pascal_voc', label_fields=['class_labels']))
 
-def albumentation_transform_float(size):
+def albumentation_transform_float(p, size):
     return A.Compose([
            A.CLAHE(p=0.3),
            A.SafeRotate(limit=(-30,30), border_mode = cv2.BORDER_REPLICATE, p=0.75),
            A.RandomSizedBBoxSafeCrop(width=size[0], height=size[1], p=0.75),
            A.Perspective(scale=(0,0.07), keep_size=False, fit_output=False, p=0.5)
-       ], p=0.5, bbox_params=A.BboxParams(format='pascal_voc', label_fields=['class_labels']))
+       ], p=p, bbox_params=A.BboxParams(format='pascal_voc', label_fields=['class_labels']))
     
 
 class TransformWithAlbumentations():
@@ -543,6 +543,8 @@ class RandomMirror(object):
         return image, boxes, classes
     
 class RandomCoverRect(object):    
+    def __init__(self, p):
+        self.p = p
     def __call__(self, image, boxes=None, labels=None):
         def DoesNotIntersect(rect, width, height, boxes):
             [x,y,x2,y2] = rect
@@ -553,7 +555,7 @@ class RandomCoverRect(object):
                 return False
             return True
         height, width, depth = image.shape
-        if boxes is not None and len(boxes) > 0 and random.randint(10) == 0:
+        if boxes is not None and len(boxes) > 0 and random.uniform(0, 1) < self.p:
             y = random.randint(height)
             x = random.randint(width)
             nboxes, _ = boxes.shape

@@ -2,7 +2,6 @@ from genericpath import exists
 import logging
 import os
 import pathlib
-from random import randint
 from numpy import random
 import xml.etree.ElementTree as ET
 from ..transforms.transforms import intersect
@@ -68,7 +67,7 @@ class VOCDataset:
     def __getitem__(self, index):
         global debug_image_count
 
-        if not self.is_test and self.bgs and random.randint(10) == 0:
+        if not self.is_test and self.bgs and random.uniform(0, 1) < 0.05:
             image, boxes, labels = self._get_item_synthetic()
         else:
             image, boxes, labels = self._get_item_normal(index)
@@ -103,7 +102,8 @@ class VOCDataset:
         labels = []
         boxes = np.empty((0, 4))
         n_faces = random.exponential(scale=1)
-        n_faces = trunc(n_faces) + 1
+        n_faces = trunc(n_faces)
+        n_faces = max(1, min(n_faces, 4))
         return self._perform_copy_paste(image, boxes, labels, n_faces)
 
     def get_image(self, index):

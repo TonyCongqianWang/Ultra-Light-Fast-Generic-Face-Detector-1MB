@@ -13,12 +13,12 @@ class TrainAugmentation:
         self.augment = Compose([
             ConvertToInt8s(),
             TransformWithAlbumentations(
-                transformation=albumentation_transform_uint8()),
+                transformation=albumentation_transform_uint8(0.5)),
             ConvertFromInts(),
             TransformWithAlbumentations(
-                transformation=albumentation_transform_float(size)),
+                transformation=albumentation_transform_float(0.75, size)),
             PhotometricDistort(),
-            RandomCoverRect(),
+            RandomCoverRect(p=0.15),
         ])
 
     def __call__(self, img, boxes=None, labels=None):
