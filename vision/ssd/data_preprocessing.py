@@ -13,10 +13,10 @@ class TrainAugmentation:
         self.augment = Compose([
             ConvertToInt8s(),
             TransformWithAlbumentations(
-                transformation=albumentation_transform_uint8(0.5)),
+                transformation=albumentation_transform_uint8(0.67)),
             ConvertFromInts(),
             TransformWithAlbumentations(
-                transformation=albumentation_transform_float(0.75, size)),
+                transformation=albumentation_transform_float(0.67, size)),
             PhotometricDistort(),
             RandomCoverRect(p=0.15),
         ])
