@@ -14,8 +14,6 @@ import albumentations as A
 def albumentation_transform_uint8(p):
     return A.Compose([
            A.ImageCompression(quality_lower=50, quality_upper=100, p=0.35),
-           A.ToGray(),
-           A.ToRgb(),
        ], p=p, bbox_params=A.BboxParams(format='pascal_voc', label_fields=['class_labels']))
 
 def albumentation_transform_float(p, size):
@@ -36,7 +34,6 @@ class TransformWithAlbumentations():
         else:
             raise Exception("Needs size or transformation")
     def __call__(self, image, bboxes=None, class_labels=None):
-        exceptions = []
         for n_try in range(300):
             try:
                 transformed = self.transform(image=image, bboxes=bboxes, class_labels=class_labels)
@@ -53,11 +50,11 @@ class TransformWithAlbumentations():
                 return transformed_image, transformed_bboxes, transformed_class_labels
             except Exception as ex:
                 if (n_try + 1) % 50 == 0:
-                    exceptions.append(ex)
+                    print(bboxes)
+                    print(ex)
                     print(f"WARNING: Albumentations causes boxes to leave image: {n_try}")
                 pass
-        print("Albumentations error")
-        raise exceptions
+        raise Exception("Albumentations error")
 
 def intersect(box_a, box_b):
     max_xy = np.minimum(box_a[:, 2:], box_b[2:])
@@ -104,6 +101,15 @@ def object_converage_numpy(box_a, box_b):
               (box_b[3] - box_b[1]))  # [A,B]
     return inter / area_a  # [A,B]
 
+class RemoveColor(object):
+    def __init__(self, p):
+        self.p = p
+    def __call__(self, image, boxes=None, labels=None):
+        if random.uniform(0,1) < p:
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            image = cv2.cvtColor(image,cv2.COLOR_GRAY2RGB)
+        return image, boxes, labels
+    
 
 class Compose(object):
     """Composes several augmentations together.
