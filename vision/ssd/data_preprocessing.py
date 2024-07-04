@@ -19,6 +19,7 @@ class TrainAugmentation:
                 transformation=albumentation_transform_float(0.67, size)),
             PhotometricDistort(),
             RandomCoverRect(p=0.15),
+            RemoveColor(p=1),
         ])
 
     def __call__(self, img, boxes=None, labels=None):

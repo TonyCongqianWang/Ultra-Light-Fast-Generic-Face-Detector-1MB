@@ -105,7 +105,7 @@ class RemoveColor(object):
     def __init__(self, p):
         self.p = p
     def __call__(self, image, boxes=None, labels=None):
-        if random.uniform(0,1) < p:
+        if random.uniform(0,1) < self.p:
             image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
             image = cv2.cvtColor(image,cv2.COLOR_GRAY2RGB)
         return image, boxes, labels
